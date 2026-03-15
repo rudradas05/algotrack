@@ -125,6 +125,39 @@ The webhook parses commit messages matching: `Add solution: 213. House Robber II
 3. Select your DSA solutions repository
 4. Solve a problem on LeetCode — LeetHub auto-commits the solution
 
+## Deploy on Vercel
+
+1. Push this project to GitHub.
+2. In Vercel, click **Add New Project** and import the repository.
+3. Keep defaults:
+
+- Framework preset: **Next.js**
+- Install command: `npm install`
+- Build command: `npm run build`
+
+4. Add these environment variables in Vercel (Project Settings → Environment Variables):
+
+- `DATABASE_URL`
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL` (set to your production domain, e.g. `https://your-app.vercel.app`)
+- `AUTH_TRUST_HOST` (`true`)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GITHUB_WEBHOOK_SECRET`
+- `GITHUB_TOKEN`
+- `GOOGLE_SHEETS_ID`
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
+- `GOOGLE_PRIVATE_KEY`
+
+5. Deploy.
+
+### Post-deploy checklist
+
+1. In Google OAuth client settings, add your Vercel production URL to authorized origins/redirects.
+2. Update GitHub webhook Payload URL to: `https://your-domain.com/api/github-webhook`.
+3. Ensure webhook secret matches `GITHUB_WEBHOOK_SECRET` in Vercel.
+4. Test login, onboarding, and one webhook delivery.
+
 ## API Endpoints
 
 | Method | Endpoint                   | Description                         |
