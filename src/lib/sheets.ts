@@ -7,23 +7,59 @@ interface ProblemForSheet {
   difficulty: string;
 }
 
+function parsePrivateKey(raw: string): string {
+  // Vercel stores env vars differently depending on how the key was pasted.
+  // Handle all known formats:
+  //   1. Literal \n text (most common in Vercel)  → real newlines
+  //   2. Double-escaped \\n                        → real newlines
+  //   3. Already has real newlines                 → leave as-is
+  //   4. Wrapped in extra quotes by Vercel panel   → strip them
+  let key = raw;
+
+  // Strip surrounding quotes if Vercel added them
+  if (key.startsWith('"') && key.endsWith('"')) {
+    key = key.slice(1, -1);
+  }
+
+  // Replace escaped newline variants with real newlines
+  key = key.replace(/\\\\n/g, "\n").replace(/\\n/g, "\n");
+
+  // Guard: if still no newlines at all, manually break at PEM boundaries
+  if (!key.includes("\n")) {
+    key = key
+      .replace("-----BEGIN PRIVATE KEY-----", "-----BEGIN PRIVATE KEY-----\n")
+      .replace("-----END PRIVATE KEY-----", "\n-----END PRIVATE KEY-----")
+      .replace(
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "-----BEGIN RSA PRIVATE KEY-----\n",
+      )
+      .replace(
+        "-----END RSA PRIVATE KEY-----",
+        "\n-----END RSA PRIVATE KEY-----",
+      );
+  }
+
+  return key.trim();
+}
+
 function getAuthClient() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY;
+  const raw = process.env.GOOGLE_PRIVATE_KEY;
 
-  if (!email || !key) {
+  if (!email || !raw) {
     throw new Error("Google Sheets credentials not configured");
   }
 
+  const key = parsePrivateKey(raw);
+
   return new google.auth.JWT({
     email,
-    key: key.replace(/\\n/g, "\n"),
+    key,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 }
 
 function getSheetRange(): string {
-  // Allow overriding tab/range in production without code changes.
   return process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:H";
 }
 
@@ -61,8 +97,8 @@ export async function appendToGoogleSheet(
     `https://leetcode.com/problems/${problem.slug}`,
     problem.topic,
     problem.difficulty,
-    "", // Idea (blank)
-    "", // What I did wrong (blank)
+    "", // Idea (blank — user fills manually)
+    "", // What I did wrong (blank — user fills manually)
     "Solved (No help)",
     "No",
   ];
@@ -72,23 +108,18 @@ export async function appendToGoogleSheet(
       spreadsheetId: sheetId,
       range: preferredRange,
       valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [row],
-      },
+      requestBody: { values: [row] },
     });
   } catch (error) {
+    // Try falling back to the first tab's actual name
     const fallbackRange = await getFallbackRange(sheets, sheetId);
-    if (fallbackRange === preferredRange) {
-      throw error;
-    }
+    if (fallbackRange === preferredRange) throw error;
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range: fallbackRange,
       valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [row],
-      },
+      requestBody: { values: [row] },
     });
   }
 }
