@@ -1,36 +1,183 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AlgoTrack — Automated DSA Progress Tracker
 
-## Getting Started
+Track your LeetCode progress automatically. Solve a problem on LeetCode, LeetHub commits it to GitHub, and AlgoTrack picks it up — logging everything to your dashboard and Google Sheets.
 
-First, run the development server:
+## System Flow
+
+```
+User solves a LeetCode problem
+  → LeetHub commits solution to GitHub
+  → GitHub sends push webhook to /api/github-webhook
+  → Extract problem slug from commit message
+  → Fetch metadata from LeetCode GraphQL API
+  → Save problem to Neon PostgreSQL via Prisma
+  → Append row to Google Sheet
+  → Dashboard analytics update automatically
+```
+
+## Tech Stack
+
+| Layer         | Technology                                              |
+| ------------- | ------------------------------------------------------- |
+| Framework     | Next.js 15 (App Router, TypeScript)                     |
+| Database      | PostgreSQL on Neon                                      |
+| ORM           | Prisma                                                  |
+| Auth          | Auth.js v5 (NextAuth)                                   |
+| UI            | shadcn/ui + Tailwind CSS                                |
+| Icons         | Lucide React                                            |
+| Charts        | Recharts                                                |
+| Notifications | Sonner (via shadcn/ui Toast)                            |
+| HTTP Client   | Axios                                                   |
+| External APIs | GitHub Webhooks, LeetCode GraphQL, Google Sheets API v4 |
+
+## Prerequisites
+
+- Node.js 20+
+- Neon account (free tier works)
+- Google Cloud project with Sheets API enabled
+- GitHub repository for DSA solutions
+- LeetHub browser extension
+
+## Local Setup
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/YOUR_USERNAME/algotrack.git
+cd algotrack
+npm install
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Fill in all values in `.env` (see Environment Variables section below).
+
+### 3. Set up the database
+
+```bash
+npx prisma migrate dev --name init
+npx prisma generate
+```
+
+### 4. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable                       | Description                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| `DATABASE_URL`                 | Neon PostgreSQL connection string                        |
+| `NEXTAUTH_SECRET`              | Random secret for Auth.js session encryption             |
+| `NEXTAUTH_URL`                 | Base URL of the app (http://localhost:3000 for dev)      |
+| `GOOGLE_CLIENT_ID`             | Google OAuth client ID                                   |
+| `GOOGLE_CLIENT_SECRET`         | Google OAuth client secret                               |
+| `GITHUB_WEBHOOK_SECRET`        | Secret used to verify GitHub webhook signatures          |
+| `GITHUB_TOKEN`                 | GitHub personal access token (optional, for API calls)   |
+| `GOOGLE_SHEETS_ID`             | Google Sheet ID (pre-configured in .env.example)         |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service account email for Sheets API                     |
+| `GOOGLE_PRIVATE_KEY`           | Service account private key (keep `\n` literal newlines) |
 
-## Learn More
+## GitHub Webhook Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Go to your GitHub DSA solutions repo → **Settings** → **Webhooks** → **Add webhook**
+2. **Payload URL**: `https://your-domain.com/api/github-webhook`
+3. **Content type**: `application/json`
+4. **Secret**: value of `GITHUB_WEBHOOK_SECRET`
+5. **Events**: select **"Just the push event"**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The webhook parses commit messages matching: `Add solution: 213. House Robber II`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Google Sheets Service Account Setup
 
-## Deploy on Vercel
+1. Go to **Google Cloud Console** → Create project → Enable **Google Sheets API**
+2. **IAM & Admin** → **Service Accounts** → Create → Download JSON key
+3. Copy `client_email` → `GOOGLE_SERVICE_ACCOUNT_EMAIL`
+4. Copy `private_key` → `GOOGLE_PRIVATE_KEY` (keep `\n` literal newlines)
+5. Share your Google Sheet with the service account email (**Editor** role)
+6. Sheet ID is pre-configured: `1kNtEzncuDmXt463avshm9zV_OcQC8YAViByTqMsREyE`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Sheet Columns
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Col | Header           | Source                  |
+| --- | ---------------- | ----------------------- |
+| A   | Problem Name     | problem.title           |
+| B   | Problem Link     | LeetCode URL            |
+| C   | Topic            | problem.topic           |
+| D   | Difficulty       | problem.difficulty      |
+| E   | Idea             | (blank — fill manually) |
+| F   | What I did wrong | (blank — fill manually) |
+| G   | Status           | "Solved (No help)"      |
+| H   | Revisit          | "No"                    |
+
+## LeetHub Setup
+
+1. Install **LeetHub** extension from Chrome Web Store
+2. Authenticate with GitHub
+3. Select your DSA solutions repository
+4. Solve a problem on LeetCode — LeetHub auto-commits the solution
+
+## API Endpoints
+
+| Method | Endpoint                   | Description                         |
+| ------ | -------------------------- | ----------------------------------- |
+| POST   | `/api/auth/register`       | Register with email/password        |
+| GET    | `/api/auth/check-username` | Check username availability         |
+| PATCH  | `/api/auth/set-username`   | Set permanent username (onboarding) |
+| POST   | `/api/github-webhook`      | GitHub push event handler           |
+| GET    | `/api/problems`            | Paginated list of solved problems   |
+| GET    | `/api/stats`               | Dashboard statistics                |
+
+## Project Structure
+
+```
+algotrack/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/login/page.tsx
+│   │   ├── (auth)/register/page.tsx
+│   │   ├── onboarding/username/page.tsx
+│   │   ├── dashboard/page.tsx
+│   │   ├── profile/page.tsx
+│   │   └── api/
+│   │       ├── auth/[...nextauth]/route.ts
+│   │       ├── auth/check-username/route.ts
+│   │       ├── auth/set-username/route.ts
+│   │       ├── auth/register/route.ts
+│   │       ├── github-webhook/route.ts
+│   │       ├── problems/route.ts
+│   │       └── stats/route.ts
+│   ├── components/
+│   │   ├── ui/           (shadcn components)
+│   │   ├── charts/
+│   │   │   ├── DifficultyChart.tsx
+│   │   │   └── TopicChart.tsx
+│   │   ├── dashboard/
+│   │   │   ├── StatsCard.tsx
+│   │   │   ├── RecentProblems.tsx
+│   │   │   ├── StreakDisplay.tsx
+│   │   │   └── DashboardNav.tsx
+│   │   └── profile/
+│   │       └── EditProfileButton.tsx
+│   ├── lib/
+│   │   ├── prisma.ts     (Prisma client singleton)
+│   │   ├── auth.ts       (Auth.js config)
+│   │   ├── github.ts     (webhook signature verification)
+│   │   ├── leetcode.ts   (GraphQL metadata fetcher)
+│   │   └── sheets.ts     (Google Sheets append logic)
+│   ├── types/
+│   │   └── next-auth.d.ts
+│   └── middleware.ts     (route protection)
+├── prisma/
+│   └── schema.prisma
+├── .env.example
+└── README.md
+```
