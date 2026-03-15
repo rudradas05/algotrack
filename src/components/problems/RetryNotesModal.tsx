@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface RetryNotesModalProps {
   problemId: string;
   currentNeedRetry: boolean;
-  currentNotes: string;
+  currentNotes: string | null;
   onUpdate: (data: { needsRetry: boolean; retryNotes: string }) => void;
   isSaving?: boolean;
 }
@@ -31,7 +31,7 @@ export function RetryNotesModal({
 }: RetryNotesModalProps) {
   const [open, setOpen] = useState(false);
   const [needRetry, setNeedRetry] = useState(currentNeedRetry);
-  const [notes, setNotes] = useState(currentNotes);
+  const [notes, setNotes] = useState(currentNotes ?? "");
 
   const handleSave = () => {
     onUpdate({ needsRetry: needRetry, retryNotes: notes });
@@ -41,7 +41,7 @@ export function RetryNotesModal({
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
       setNeedRetry(currentNeedRetry);
-      setNotes(currentNotes);
+      setNotes(currentNotes ?? "");
     }
     setOpen(newOpen);
   };
@@ -51,7 +51,13 @@ export function RetryNotesModal({
       <div onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={currentNeedRetry}
-          onCheckedChange={() => setOpen(true)}
+          onCheckedChange={(checked) => {
+            if (checked) {
+              setOpen(true);
+            } else {
+              onUpdate({ needsRetry: false, retryNotes: "" });
+            }
+          }}
           className="cursor-pointer"
         />
       </div>

@@ -36,6 +36,16 @@ export default async function AllProblemsPage() {
     .filter(Boolean)
     .sort();
 
+  // Compute stats from the data we already fetched
+  const stats = {
+    total: problems.length,
+    easy: problems.filter((p) => p.difficulty === "Easy").length,
+    medium: problems.filter((p) => p.difficulty === "Medium").length,
+    hard: problems.filter((p) => p.difficulty === "Hard").length,
+    retry: problems.filter((p) => p.needsRetry).length,
+    solvedByMe: problems.filter((p) => p.solvedByMe).length,
+  };
+
   // Convert dates to ISO strings for serialization
   const problemsData = problems.map((p) => ({
     ...p,
@@ -60,6 +70,7 @@ export default async function AllProblemsPage() {
           initialProblems={problemsData}
           availableDifficulties={difficulties}
           availableTopics={topics}
+          stats={stats}
         />
       </main>
     </div>
