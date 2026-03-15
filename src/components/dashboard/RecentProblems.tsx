@@ -28,7 +28,7 @@ const difficultyColor: Record<string, string> = {
 export function RecentProblems({ problems }: { problems: Problem[] }) {
   if (problems.length === 0) {
     return (
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
           <CardTitle>Recent Problems</CardTitle>
         </CardHeader>
@@ -42,7 +42,7 @@ export function RecentProblems({ problems }: { problems: Problem[] }) {
   }
 
   return (
-    <Card>
+    <Card className="glass-card">
       <CardHeader>
         <CardTitle>Recent Problems</CardTitle>
       </CardHeader>
@@ -65,7 +65,7 @@ export function RecentProblems({ problems }: { problems: Problem[] }) {
                     href={problem.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline font-medium"
+                    className="font-medium text-primary hover:underline"
                   >
                     {problem.title}
                   </a>
@@ -79,7 +79,11 @@ export function RecentProblems({ problems }: { problems: Problem[] }) {
                     {problem.difficulty}
                   </Badge>
                 </TableCell>
-                <TableCell>{problem.topic}</TableCell>
+                <TableCell>
+                  <span className="rounded-md bg-secondary px-2 py-1 text-xs">
+                    {problem.topic}
+                  </span>
+                </TableCell>
                 <TableCell className="text-muted-foreground">
                   {new Date(problem.solvedAt).toLocaleDateString()}
                 </TableCell>

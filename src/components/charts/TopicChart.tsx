@@ -23,7 +23,7 @@ export function TopicChart({ data }: TopicChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
           <CardTitle>Topic Breakdown</CardTitle>
         </CardHeader>
@@ -35,18 +35,24 @@ export function TopicChart({ data }: TopicChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="glass-card">
       <CardHeader>
         <CardTitle>Topic Breakdown</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} layout="vertical" margin={{ left: 40 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <CartesianGrid
+              strokeDasharray="4 4"
+              horizontal={false}
+              stroke="#94a3b833"
+            />
             <XAxis type="number" allowDecimals={false} />
             <YAxis type="category" dataKey="name" width={120} fontSize={12} />
-            <Tooltip />
-            <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+            <Tooltip
+              contentStyle={{ borderRadius: "0.75rem", borderColor: "#d4d4d8" }}
+            />
+            <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

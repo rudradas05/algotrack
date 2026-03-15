@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EditProfileButton } from "@/components/profile/EditProfileButton";
+import { Trophy, Flame, Calendar, ExternalLink } from "lucide-react";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -68,70 +69,89 @@ export default async function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <DashboardNav username={user.username} image={user.image} />
-      <main className="container mx-auto px-4 py-8 max-w-2xl space-y-8">
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 pt-8 pb-6">
-            <Avatar className="h-24 w-24">
+      <main className="container mx-auto px-4 py-10 max-w-2xl space-y-6">
+        {/* Profile Card */}
+        <Card className="glass-card rounded-3xl overflow-hidden">
+          {/* Gradient banner */}
+          <div className="h-28 bg-gradient-to-r from-blue-600 via-cyan-500 to-orange-400" />
+          <CardContent className="flex flex-col items-center gap-3 -mt-14 pb-8 px-6">
+            <Avatar className="h-28 w-28 border-4 border-white shadow-lg ring-2 ring-blue-500/20">
               <AvatarImage src={user.image || undefined} alt={user.username} />
-              <AvatarFallback className="text-2xl">
+              <AvatarFallback className="text-3xl font-bold bg-gradient-to-br from-blue-500 to-cyan-400 text-white">
                 {user.username.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">{user.username}</h1>
-              <p className="text-sm text-muted-foreground">
-                Permanent — shown on leaderboards
+            <div className="text-center mt-1">
+              <h1 className="text-2xl font-bold gradient-title">
+                {user.username}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {user.email}
               </p>
             </div>
-            <p className="text-muted-foreground">{user.email}</p>
-            <p className="text-sm text-muted-foreground">
-              Member since {user.createdAt.toLocaleDateString()}
-            </p>
-            <div className="flex gap-8 pt-2">
-              <div className="text-center">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              Member since {user.createdAt.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 gap-4 w-full max-w-xs mt-3">
+              <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-blue-500/8 border border-blue-500/15 py-4 px-3">
+                <Trophy className="h-5 w-5 text-blue-500" />
                 <p className="text-2xl font-bold">{totalSolved}</p>
-                <p className="text-xs text-muted-foreground">Total Solved</p>
+                <p className="text-xs text-muted-foreground">Problems Solved</p>
               </div>
-              <div className="text-center">
+              <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-orange-500/8 border border-orange-500/15 py-4 px-3">
+                <Flame className="h-5 w-5 text-orange-500" />
                 <p className="text-2xl font-bold">{currentStreak}</p>
-                <p className="text-xs text-muted-foreground">Current Streak</p>
+                <p className="text-xs text-muted-foreground">Day Streak</p>
               </div>
             </div>
+
             <EditProfileButton />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Problems</CardTitle>
+        {/* Recent Activity */}
+        <Card className="glass-card rounded-3xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-6">
             {recentProblems.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
-                No problems solved yet.
+              <p className="text-muted-foreground text-center py-8">
+                No problems solved yet. Start your journey!
               </p>
             ) : (
-              <div className="space-y-3">
-                {recentProblems.map((problem) => (
+              <div className="space-y-1">
+                {recentProblems.map((problem, i) => (
                   <div
                     key={problem.id}
-                    className="flex items-center justify-between"
+                    className={`flex items-center justify-between gap-3 py-3 px-3 rounded-xl transition-colors hover:bg-black/[0.03] ${
+                      i < recentProblems.length - 1 ? "border-b border-border/50" : ""
+                    }`}
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <a
                         href={problem.githubUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm font-medium text-primary hover:underline"
+                        className="text-sm font-medium text-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
                       >
-                        {problem.title}
+                        <span className="truncate">{problem.title}</span>
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                       </a>
-                      <p className="text-xs text-muted-foreground">
-                        {problem.topic} —{" "}
-                        {problem.solvedAt.toLocaleDateString()}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">
+                          {problem.topic}
+                        </span>
+                        <span className="text-muted-foreground/40 text-xs">&middot;</span>
+                        <span className="text-xs text-muted-foreground">
+                          {problem.solvedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
                     </div>
                     <Badge
                       variant="secondary"

@@ -27,7 +27,7 @@ export function DifficultyChart({ data }: DifficultyChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
           <CardTitle>Difficulty Distribution</CardTitle>
         </CardHeader>
@@ -39,7 +39,7 @@ export function DifficultyChart({ data }: DifficultyChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="glass-card">
       <CardHeader>
         <CardTitle>Difficulty Distribution</CardTitle>
       </CardHeader>
@@ -52,15 +52,19 @@ export function DifficultyChart({ data }: DifficultyChartProps) {
               cy="50%"
               innerRadius={60}
               outerRadius={100}
-              paddingAngle={5}
+              paddingAngle={3}
               dataKey="value"
+              stroke="rgba(255,255,255,0.7)"
+              strokeWidth={2}
               label={({ name, value }) => `${name}: ${value}`}
             >
               {chartData.map((entry) => (
                 <Cell key={entry.name} fill={COLORS[entry.name] || "#8884d8"} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip
+              contentStyle={{ borderRadius: "0.75rem", borderColor: "#d4d4d8" }}
+            />
             <Legend />
           </PieChart>
         </ResponsiveContainer>

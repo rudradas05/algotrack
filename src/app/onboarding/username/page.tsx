@@ -101,66 +101,68 @@ export default function OnboardingUsernamePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">
-            Choose your username
-          </CardTitle>
-          <CardDescription>
-            This is permanent and will appear on your public profile and future
-            leaderboards. Choose wisely.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="your_username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase())}
-              maxLength={20}
-            />
-            <div className="h-5 flex items-center gap-1.5">
-              {status === "too_short" && (
-                <p className="text-sm text-muted-foreground">
-                  Username too short
-                </p>
-              )}
-              {status === "invalid" && (
-                <p className="text-sm text-destructive">
-                  Only letters, numbers, underscores allowed
-                </p>
-              )}
-              {status === "checking" && (
-                <div className="flex items-center gap-1.5">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Checking...</p>
-                </div>
-              )}
-              {status === "available" && (
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <p className="text-sm text-green-500">Available</p>
-                </div>
-              )}
-              {status === "taken" && (
-                <div className="flex items-center gap-1.5">
-                  <XCircle className="h-4 w-4 text-destructive" />
-                  <p className="text-sm text-destructive">Already taken</p>
-                </div>
-              )}
+    <div className="hero-grid min-h-screen px-4 py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-md items-center justify-center">
+        <Card className="glass-card w-full rounded-3xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">
+              Choose your username
+            </CardTitle>
+            <CardDescription>
+              This is permanent and will appear on your public profile and
+              future leaderboards. Choose wisely.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="text"
+                placeholder="your_username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                maxLength={20}
+              />
+              <div className="h-5 flex items-center gap-1.5">
+                {status === "too_short" && (
+                  <p className="text-sm text-muted-foreground">
+                    Username too short
+                  </p>
+                )}
+                {status === "invalid" && (
+                  <p className="text-sm text-destructive">
+                    Only letters, numbers, underscores allowed
+                  </p>
+                )}
+                {status === "checking" && (
+                  <div className="flex items-center gap-1.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Checking...</p>
+                  </div>
+                )}
+                {status === "available" && (
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <p className="text-sm text-green-500">Available</p>
+                  </div>
+                )}
+                {status === "taken" && (
+                  <div className="flex items-center gap-1.5">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                    <p className="text-sm text-destructive">Already taken</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <Button
-            className="w-full"
-            disabled={status !== "available" || loading}
-            onClick={handleSubmit}
-          >
-            {loading ? "Setting username..." : "Continue"}
-          </Button>
-        </CardContent>
-      </Card>
+            <Button
+              className="w-full"
+              disabled={status !== "available" || loading}
+              onClick={handleSubmit}
+            >
+              {loading ? "Setting username..." : "Continue"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

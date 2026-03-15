@@ -131,12 +131,12 @@ export default async function DashboardPage() {
     take: 10,
   });
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const oneYearAgo = new Date();
+  oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+  oneYearAgo.setHours(0, 0, 0, 0);
 
   const streakData = await prisma.streak.findMany({
-    where: { userId, date: { gte: thirtyDaysAgo } },
+    where: { userId, date: { gte: oneYearAgo } },
     orderBy: { date: "asc" },
   });
 
@@ -151,16 +151,23 @@ export default async function DashboardPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <DashboardNav
         username={session.user.username}
         image={session.user.image}
       />
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {session.user.username}!
+        <div className="subtle-rise glass-card rounded-3xl p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Command Center
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            Welcome back,{" "}
+            <span className="gradient-title">{session.user.username}</span>
+          </h1>
+          <p className="mt-2 max-w-2xl text-muted-foreground">
+            Track momentum, inspect weak areas, and keep your DSA growth loop
+            running every day.
           </p>
         </div>
 
@@ -182,12 +189,16 @@ export default async function DashboardPage() {
             value={stats.currentStreak}
             icon={Flame}
             color="bg-orange-500"
+            subtitle="days in a row"
+            variant="streak"
           />
           <StatsCard
             title="Longest Streak"
             value={stats.longestStreak}
             icon={Star}
-            color="bg-purple-500"
+            color="bg-amber-500"
+            subtitle="best run"
+            variant="streak"
           />
         </div>
 

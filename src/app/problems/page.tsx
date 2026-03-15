@@ -53,15 +53,18 @@ export default async function AllProblemsPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <DashboardNav
         username={session.user.username}
         image={session.user.image}
       />
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">All Problems</h1>
-          <p className="text-muted-foreground mt-2">
+        <div className="glass-card mb-8 rounded-3xl p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Problem Library
+          </p>
+          <h1 className="mt-2 text-3xl font-bold">All Problems</h1>
+          <p className="mt-2 text-muted-foreground">
             Manage and track all your LeetCode problems
           </p>
         </div>
