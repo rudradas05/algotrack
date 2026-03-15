@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ type UsernameStatus =
 
 export default function OnboardingUsernamePage() {
   const router = useRouter();
+  const { update } = useSession();
   const [username, setUsername] = useState("");
   const [status, setStatus] = useState<UsernameStatus>("idle");
   const [loading, setLoading] = useState(false);
@@ -83,8 +85,9 @@ export default function OnboardingUsernamePage() {
     try {
       await axios.patch("/api/auth/set-username", { username });
       toast.success("Username set successfully!");
-      router.push("/dashboard");
-      router.refresh();
+      // Force JWT refresh so middleware sees usernameSet = true
+      await update();
+      window.location.href = "/dashboard";
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
         toast.error("Username just taken, try another");

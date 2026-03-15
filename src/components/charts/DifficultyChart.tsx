@@ -31,7 +31,7 @@ export function DifficultyChart({ data }: DifficultyChartProps) {
         <CardHeader>
           <CardTitle>Difficulty Distribution</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center h-[300px]">
+        <CardContent className="flex items-center justify-center h-75">
           <p className="text-muted-foreground">No data yet</p>
         </CardContent>
       </Card>

@@ -1,12 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { authConfig } from "@/lib/auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  ...authConfig,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -49,49 +49,93 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-  },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
+        const email = user.email ?? profile?.email;
+        if (!email) return false;
+
         const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
+          where: { email },
         });
 
         if (!existingUser) {
           const cuidFragment = Math.random().toString(36).substring(2, 10);
-          await prisma.user.create({
+          const newUser = await prisma.user.create({
             data: {
-              email: user.email!,
+              email,
               username: `user_${cuidFragment}`,
               usernameSet: false,
-              image: user.image,
+              image: user.image ?? (profile as Record<string, unknown>)?.picture as string ?? null,
             },
           });
+          // Link the Google account
+          await prisma.account.create({
+            data: {
+              userId: newUser.id,
+              type: account.type,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+              access_token: account.access_token ?? null,
+              token_type: account.token_type ?? null,
+              refresh_token: account.refresh_token ?? null,
+              expires_at: account.expires_at ?? null,
+              scope: account.scope ?? null,
+              id_token: account.id_token ?? null,
+              session_state: account.session_state as string ?? null,
+            },
+          });
+        } else {
+          // Ensure account link exists for returning users
+          const existingAccount = await prisma.account.findFirst({
+            where: {
+              userId: existingUser.id,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+          });
+          if (!existingAccount) {
+            await prisma.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                access_token: account.access_token ?? null,
+                token_type: account.token_type ?? null,
+                refresh_token: account.refresh_token ?? null,
+                expires_at: account.expires_at ?? null,
+                scope: account.scope ?? null,
+                id_token: account.id_token ?? null,
+                session_state: account.session_state as string ?? null,
+              },
+            });
+          }
         }
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      // On initial sign-in (user object is present)
       if (user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.username = dbUser.username;
-          token.usernameSet = dbUser.usernameSet;
+        const email = user.email ?? token.email;
+        if (email) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.username = dbUser.username;
+            token.usernameSet = dbUser.usernameSet;
+          }
         }
-      } else if (token.email) {
+      } else if (token.id) {
+        // On subsequent requests, refresh usernameSet from DB
+        // (important: after onboarding sets username, next request picks it up)
         const dbUser = await prisma.user.findUnique({
-          where: { email: token.email },
+          where: { id: token.id as string },
         });
         if (dbUser) {
-          token.id = dbUser.id;
           token.username = dbUser.username;
           token.usernameSet = dbUser.usernameSet;
         }
