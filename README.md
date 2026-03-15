@@ -83,6 +83,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `GITHUB_WEBHOOK_SECRET`        | Secret used to verify GitHub webhook signatures          |
 | `GITHUB_TOKEN`                 | GitHub personal access token (optional, for API calls)   |
 | `GOOGLE_SHEETS_ID`             | Google Sheet ID (pre-configured in .env.example)         |
+| `GOOGLE_SHEETS_RANGE`          | Target worksheet range (default `Sheet1!A:H`)            |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service account email for Sheets API                     |
 | `GOOGLE_PRIVATE_KEY`           | Service account private key (keep `\n` literal newlines) |
 

@@ -22,6 +22,28 @@ function getAuthClient() {
   });
 }
 
+function getSheetRange(): string {
+  // Allow overriding tab/range in production without code changes.
+  return process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:H";
+}
+
+async function getFallbackRange(
+  sheets: ReturnType<typeof google.sheets>,
+  spreadsheetId: string,
+): Promise<string> {
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties.title",
+  });
+
+  const firstTitle = meta.data.sheets?.[0]?.properties?.title;
+  if (!firstTitle) {
+    throw new Error("Unable to determine a worksheet tab name");
+  }
+
+  return `${firstTitle}!A:H`;
+}
+
 export async function appendToGoogleSheet(
   problem: ProblemForSheet,
 ): Promise<void> {
@@ -32,6 +54,7 @@ export async function appendToGoogleSheet(
 
   const authClient = getAuthClient();
   const sheets = google.sheets({ version: "v4", auth: authClient });
+  const preferredRange = getSheetRange();
 
   const row = [
     problem.title,
@@ -44,12 +67,28 @@ export async function appendToGoogleSheet(
     "No",
   ];
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: sheetId,
-    range: "Sheet1!A:H",
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [row],
-    },
-  });
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: preferredRange,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [row],
+      },
+    });
+  } catch (error) {
+    const fallbackRange = await getFallbackRange(sheets, sheetId);
+    if (fallbackRange === preferredRange) {
+      throw error;
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: fallbackRange,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [row],
+      },
+    });
+  }
 }

@@ -23,6 +23,9 @@ export function verifyGitHubWebhook(
 
 export interface GitHubPushEvent {
   ref: string;
+  repository: {
+    full_name: string;
+  };
   sender: {
     login: string;
   };
@@ -30,6 +33,9 @@ export interface GitHubPushEvent {
     id: string;
     message: string;
     url: string;
+    added?: string[];
+    removed?: string[];
+    modified?: string[];
     author: {
       name: string;
       email: string;
