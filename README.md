@@ -73,19 +73,22 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Environment Variables
 
-| Variable                       | Description                                              |
-| ------------------------------ | -------------------------------------------------------- |
-| `DATABASE_URL`                 | Neon PostgreSQL connection string                        |
-| `NEXTAUTH_SECRET`              | Random secret for Auth.js session encryption             |
-| `NEXTAUTH_URL`                 | Base URL of the app (http://localhost:3000 for dev)      |
-| `GOOGLE_CLIENT_ID`             | Google OAuth client ID                                   |
-| `GOOGLE_CLIENT_SECRET`         | Google OAuth client secret                               |
-| `GITHUB_WEBHOOK_SECRET`        | Secret used to verify GitHub webhook signatures          |
-| `GITHUB_TOKEN`                 | GitHub personal access token (optional, for API calls)   |
-| `GOOGLE_SHEETS_ID`             | Google Sheet ID (pre-configured in .env.example)         |
-| `GOOGLE_SHEETS_RANGE`          | Target worksheet range (default `Sheet1!A:H`)            |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service account email for Sheets API                     |
-| `GOOGLE_PRIVATE_KEY`           | Service account private key (keep `\n` literal newlines) |
+| Variable                       | Description                                               |
+| ------------------------------ | --------------------------------------------------------- |
+| `DATABASE_URL`                 | Neon PostgreSQL connection string                         |
+| `NEXTAUTH_SECRET`              | Random secret for Auth.js session encryption              |
+| `NEXTAUTH_URL`                 | Base URL of the app (http://localhost:3000 for dev)       |
+| `GOOGLE_CLIENT_ID`             | Google OAuth client ID                                    |
+| `GOOGLE_CLIENT_SECRET`         | Google OAuth client secret                                |
+| `GITHUB_WEBHOOK_SECRET`        | Secret used to verify GitHub webhook signatures           |
+| `GITHUB_TOKEN`                 | GitHub personal access token (optional, for API calls)    |
+| `GITHUB_WEBHOOK_ALLOWED_REPOS` | Comma-separated allowlist, e.g. `yourname/DSA`            |
+| `WEBHOOK_TARGET_APP_USERNAME`  | Optional fixed app username for webhook ownership mapping |
+| `WEBHOOK_TARGET_APP_EMAIL`     | Optional fixed app email for webhook ownership mapping    |
+| `GOOGLE_SHEETS_ID`             | Google Sheet ID (pre-configured in .env.example)          |
+| `GOOGLE_SHEETS_RANGE`          | Target worksheet range (default `Sheet1!A:H`)             |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service account email for Sheets API                      |
+| `GOOGLE_PRIVATE_KEY`           | Service account private key (keep `\n` literal newlines)  |
 
 ## GitHub Webhook Setup
 
@@ -94,6 +97,11 @@ Open [http://localhost:3000](http://localhost:3000).
 3. **Content type**: `application/json`
 4. **Secret**: value of `GITHUB_WEBHOOK_SECRET`
 5. **Events**: select **"Just the push event"**
+
+Recommended webhook env values for LeetHub:
+
+- `GITHUB_WEBHOOK_ALLOWED_REPOS=YOUR_GITHUB_USERNAME/DSA`
+- `WEBHOOK_TARGET_APP_USERNAME=your_app_username` (or use `WEBHOOK_TARGET_APP_EMAIL`)
 
 The webhook parses commit messages matching: `Add solution: 213. House Robber II`
 

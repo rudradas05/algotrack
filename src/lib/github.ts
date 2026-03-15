@@ -24,9 +24,14 @@ export function verifyGitHubWebhook(
 export interface GitHubPushEvent {
   ref: string;
   repository: {
+    name: string;
     full_name: string;
+    owner?: {
+      login?: string;
+    };
   };
   sender: {
+    id: number;
     login: string;
   };
   commits: Array<{

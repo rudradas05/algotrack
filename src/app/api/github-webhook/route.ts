@@ -78,40 +78,129 @@ function extractGitHubNoreplyUsername(email?: string): string | null {
   return match?.[1] ?? null;
 }
 
-async function resolveUserForEvent(event: GitHubPushEvent) {
-  const senderLogin = event.sender.login.toLowerCase();
+function normalizeGitHubHandle(value?: string | null): string | null {
+  if (!value) return null;
 
-  const linkedAccountUser = await prisma.user.findFirst({
+  const normalized = value.trim().toLowerCase().replace(/^@/, "");
+  return normalized || null;
+}
+
+function parseCommaSeparatedList(value?: string): string[] {
+  if (!value) return [];
+
+  return value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function shouldProcessRepository(event: GitHubPushEvent): boolean {
+  const allowedFullNames = parseCommaSeparatedList(
+    process.env.GITHUB_WEBHOOK_ALLOWED_REPOS,
+  );
+
+  if (allowedFullNames.length === 0) {
+    return true;
+  }
+
+  return allowedFullNames.includes(event.repository.full_name.toLowerCase());
+}
+
+function collectEventAuthorEmails(event: GitHubPushEvent): string[] {
+  const emails = new Set<string>();
+
+  for (const commit of event.commits) {
+    const email = commit.author?.email?.toLowerCase();
+    if (email) emails.add(email);
+  }
+
+  return Array.from(emails);
+}
+
+function collectEventAuthorUsernames(event: GitHubPushEvent): string[] {
+  const usernames = new Set<string>();
+
+  for (const commit of event.commits) {
+    const username = normalizeGitHubHandle(commit.author?.username);
+    if (username) usernames.add(username);
+
+    const fromNoreply = extractGitHubNoreplyUsername(commit.author?.email);
+    if (fromNoreply) usernames.add(fromNoreply);
+  }
+
+  return Array.from(usernames);
+}
+
+async function resolveUserForEvent(event: GitHubPushEvent) {
+  const senderLogin = normalizeGitHubHandle(event.sender.login);
+  const senderId = String(event.sender.id);
+
+  const senderIdAccountUser = await prisma.user.findFirst({
     where: {
       accounts: {
         some: {
           provider: "github",
-          providerAccountId: senderLogin,
+          providerAccountId: senderId,
         },
       },
     },
   });
-  if (linkedAccountUser) return linkedAccountUser;
+  if (senderIdAccountUser) return senderIdAccountUser;
 
-  const usernameMatch = await prisma.user.findUnique({
-    where: { username: senderLogin },
-  });
-  if (usernameMatch) return usernameMatch;
+  if (senderLogin) {
+    const senderLoginAccountUser = await prisma.user.findFirst({
+      where: {
+        accounts: {
+          some: {
+            provider: "github",
+            providerAccountId: senderLogin,
+          },
+        },
+      },
+    });
+    if (senderLoginAccountUser) return senderLoginAccountUser;
+  }
 
-  const authorEmail = event.commits[0]?.author?.email;
-  if (authorEmail) {
+  if (senderLogin) {
+    const usernameMatch = await prisma.user.findUnique({
+      where: { username: senderLogin },
+    });
+    if (usernameMatch) return usernameMatch;
+  }
+
+  const authorEmails = collectEventAuthorEmails(event);
+  for (const authorEmail of authorEmails) {
     const emailMatch = await prisma.user.findUnique({
-      where: { email: authorEmail.toLowerCase() },
+      where: { email: authorEmail },
     });
     if (emailMatch) return emailMatch;
   }
 
-  const noreplyUser = extractGitHubNoreplyUsername(authorEmail);
-  if (noreplyUser) {
-    const noreplyUsernameMatch = await prisma.user.findUnique({
-      where: { username: noreplyUser },
+  const authorUsernames = collectEventAuthorUsernames(event);
+  for (const authorUsername of authorUsernames) {
+    const authorUsernameMatch = await prisma.user.findUnique({
+      where: { username: authorUsername },
     });
-    if (noreplyUsernameMatch) return noreplyUsernameMatch;
+    if (authorUsernameMatch) return authorUsernameMatch;
+  }
+
+  const preferredAppUsername = normalizeGitHubHandle(
+    process.env.WEBHOOK_TARGET_APP_USERNAME,
+  );
+  if (preferredAppUsername) {
+    const appUser = await prisma.user.findUnique({
+      where: { username: preferredAppUsername },
+    });
+    if (appUser) return appUser;
+  }
+
+  const preferredAppEmail =
+    process.env.WEBHOOK_TARGET_APP_EMAIL?.trim().toLowerCase();
+  if (preferredAppEmail) {
+    const emailUser = await prisma.user.findUnique({
+      where: { email: preferredAppEmail },
+    });
+    if (emailUser) return emailUser;
   }
 
   const userCount = await prisma.user.count();
@@ -127,6 +216,17 @@ async function resolveUserForEvent(event: GitHubPushEvent) {
 
 export async function POST(request: NextRequest) {
   try {
+    const eventName = request.headers.get("x-github-event")?.toLowerCase();
+    if (eventName !== "push") {
+      return NextResponse.json(
+        {
+          ignored: true,
+          reason: `Unsupported GitHub event: ${eventName ?? "unknown"}`,
+        },
+        { status: 200 },
+      );
+    }
+
     const secret = process.env.GITHUB_WEBHOOK_SECRET;
     if (!secret) {
       console.error("GITHUB_WEBHOOK_SECRET not configured");
@@ -144,14 +244,38 @@ export async function POST(request: NextRequest) {
     }
 
     const event: GitHubPushEvent = JSON.parse(rawBody.toString("utf-8"));
+    if (!shouldProcessRepository(event)) {
+      return NextResponse.json(
+        {
+          ignored: true,
+          reason: `Repository ${event.repository.full_name} is not in GITHUB_WEBHOOK_ALLOWED_REPOS`,
+        },
+        { status: 200 },
+      );
+    }
+
+    if (!Array.isArray(event.commits) || event.commits.length === 0) {
+      return NextResponse.json(
+        { processed: 0, ignored: true, reason: "No commits in payload" },
+        { status: 200 },
+      );
+    }
+
     let processed = 0;
     const user = await resolveUserForEvent(event);
 
     if (!user) {
       console.warn(
-        `No user mapping for sender ${event.sender.login} from ${event.repository.full_name}`,
+        `No user mapping for sender ${event.sender.login} (${event.sender.id}) from ${event.repository.full_name}`,
       );
-      return NextResponse.json({ processed: 0 }, { status: 200 });
+      return NextResponse.json(
+        {
+          processed: 0,
+          ignored: true,
+          reason: "No matching user for webhook event",
+        },
+        { status: 200 },
+      );
     }
 
     for (const commit of event.commits) {
