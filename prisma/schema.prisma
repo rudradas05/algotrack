@@ -68,6 +68,11 @@ model Problem {
   solvedAt   DateTime @default(now())
   userId     String
 
+  // Status tracking
+  solvedByMe Boolean @default(true)
+  needsRetry Boolean @default(false)
+  retryNotes String? @default("")
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([slug, userId])

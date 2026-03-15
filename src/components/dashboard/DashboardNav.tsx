@@ -25,6 +25,12 @@ export function DashboardNav({ username, image }: DashboardNavProps) {
             Dashboard
           </Link>
           <Link
+            href="/problems"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            All Problems
+          </Link>
+          <Link
             href="/profile"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
