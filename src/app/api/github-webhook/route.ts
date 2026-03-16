@@ -295,6 +295,18 @@ export async function POST(request: NextRequest) {
 
         if (!metadata) continue;
 
+        // Check if the problem already exists to avoid duplicate sheet rows
+        const existingProblem = await prisma.problem.findUnique({
+          where: {
+            slug_userId: {
+              slug: metadata.slug,
+              userId: user.id,
+            },
+          },
+        });
+
+        const isNewProblem = !existingProblem;
+
         const savedProblem = await prisma.problem.upsert({
           where: {
             slug_userId: {
@@ -336,16 +348,19 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        try {
-          await appendToGoogleSheet(savedProblem);
-        } catch (sheetError) {
-          const message =
-            sheetError instanceof Error
-              ? sheetError.message
-              : String(sheetError);
-          console.error(
-            `Google Sheets append error for slug ${savedProblem.slug} (user ${user.id}): ${message}`,
-          );
+        // Only append to Google Sheet for newly created problems
+        if (isNewProblem) {
+          try {
+            await appendToGoogleSheet(savedProblem);
+          } catch (sheetError) {
+            const message =
+              sheetError instanceof Error
+                ? sheetError.message
+                : String(sheetError);
+            console.error(
+              `Google Sheets append error for slug ${savedProblem.slug} (user ${user.id}): ${message}`,
+            );
+          }
         }
 
         processed++;

@@ -173,7 +173,7 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
         {/* Activity calendar (contribution-style heatmap) */}
         <div>
           <h3 className="text-sm font-medium text-foreground mb-3">Activity calendar</h3>
-          <div className="rounded-xl border border-border bg-muted/20 p-4 overflow-x-auto relative min-h-[140px]">
+          <div className="rounded-xl border border-border bg-muted/20 p-4 overflow-x-auto relative min-h-35">
             <svg
               width={svgWidth}
               height={svgHeight}

@@ -80,19 +80,8 @@ async function getFallbackRange(
   return `${firstTitle}!A:H`;
 }
 
-export async function appendToGoogleSheet(
-  problem: ProblemForSheet,
-): Promise<void> {
-  const sheetId = process.env.GOOGLE_SHEETS_ID;
-  if (!sheetId) {
-    throw new Error("GOOGLE_SHEETS_ID not configured");
-  }
-
-  const authClient = getAuthClient();
-  const sheets = google.sheets({ version: "v4", auth: authClient });
-  const preferredRange = getSheetRange();
-
-  const row = [
+function problemToRow(problem: ProblemForSheet): string[] {
+  return [
     problem.title,
     `https://leetcode.com/problems/${problem.slug}`,
     problem.topic,
@@ -102,13 +91,21 @@ export async function appendToGoogleSheet(
     "Solved (No help)",
     "No",
   ];
+}
+
+async function appendRows(
+  sheets: ReturnType<typeof google.sheets>,
+  sheetId: string,
+  rows: string[][],
+): Promise<void> {
+  const preferredRange = getSheetRange();
 
   try {
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range: preferredRange,
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [row] },
+      requestBody: { values: rows },
     });
   } catch (error) {
     // Try falling back to the first tab's actual name
@@ -119,7 +116,76 @@ export async function appendToGoogleSheet(
       spreadsheetId: sheetId,
       range: fallbackRange,
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [row] },
+      requestBody: { values: rows },
     });
   }
+}
+
+async function readExistingSlugs(
+  sheets: ReturnType<typeof google.sheets>,
+  sheetId: string,
+): Promise<Set<string>> {
+  const preferredRange = getSheetRange();
+  const slugs = new Set<string>();
+
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: preferredRange,
+    });
+
+    const rows = response.data.values;
+    if (!rows) return slugs;
+
+    // Column B has the LeetCode URL — extract the slug from it
+    for (const row of rows) {
+      const url = row[1];
+      if (typeof url !== "string") continue;
+      const match = url.match(/leetcode\.com\/problems\/([a-z0-9-]+)/);
+      if (match?.[1]) slugs.add(match[1]);
+    }
+  } catch {
+    // If we can't read the sheet, return empty set so all problems get synced
+  }
+
+  return slugs;
+}
+
+export async function appendToGoogleSheet(
+  problem: ProblemForSheet,
+): Promise<void> {
+  const sheetId = process.env.GOOGLE_SHEETS_ID;
+  if (!sheetId) {
+    throw new Error("GOOGLE_SHEETS_ID not configured");
+  }
+
+  const authClient = getAuthClient();
+  const sheets = google.sheets({ version: "v4", auth: authClient });
+
+  await appendRows(sheets, sheetId, [problemToRow(problem)]);
+}
+
+export async function syncAllToGoogleSheet(
+  problems: ProblemForSheet[],
+): Promise<{ synced: number; alreadyInSheet: number }> {
+  const sheetId = process.env.GOOGLE_SHEETS_ID;
+  if (!sheetId) {
+    throw new Error("GOOGLE_SHEETS_ID not configured");
+  }
+
+  const authClient = getAuthClient();
+  const sheets = google.sheets({ version: "v4", auth: authClient });
+
+  const existingSlugs = await readExistingSlugs(sheets, sheetId);
+
+  const newProblems = problems.filter((p) => !existingSlugs.has(p.slug));
+
+  if (newProblems.length === 0) {
+    return { synced: 0, alreadyInSheet: existingSlugs.size };
+  }
+
+  const rows = newProblems.map(problemToRow);
+  await appendRows(sheets, sheetId, rows);
+
+  return { synced: newProblems.length, alreadyInSheet: existingSlugs.size };
 }
