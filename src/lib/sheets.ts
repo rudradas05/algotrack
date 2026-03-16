@@ -92,12 +92,73 @@ function problemToRow(problem: ProblemForSheet): string[] {
   ];
 }
 
+async function getSheetGridId(
+  sheets: ReturnType<typeof google.sheets>,
+  spreadsheetId: string,
+): Promise<number> {
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties",
+  });
+  return meta.data.sheets?.[0]?.properties?.sheetId ?? 0;
+}
+
+async function copyRowFormatting(
+  sheets: ReturnType<typeof google.sheets>,
+  spreadsheetId: string,
+  templateRow: number,
+  startRow: number,
+  endRow: number,
+  numColumns: number,
+): Promise<void> {
+  const gridId = await getSheetGridId(sheets, spreadsheetId);
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          copyPaste: {
+            source: {
+              sheetId: gridId,
+              startRowIndex: templateRow,
+              endRowIndex: templateRow + 1,
+              startColumnIndex: 0,
+              endColumnIndex: numColumns,
+            },
+            destination: {
+              sheetId: gridId,
+              startRowIndex: startRow,
+              endRowIndex: endRow,
+              startColumnIndex: 0,
+              endColumnIndex: numColumns,
+            },
+            pasteType: "PASTE_FORMAT",
+          },
+        },
+      ],
+    },
+  });
+}
+
 async function appendRows(
   sheets: ReturnType<typeof google.sheets>,
   sheetId: string,
   rows: string[][],
 ): Promise<void> {
   const preferredRange = getSheetRange();
+
+  // Get current row count so we know where new rows start
+  let existingRowCount = 0;
+  try {
+    const existing = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: preferredRange,
+    });
+    existingRowCount = existing.data.values?.length ?? 0;
+  } catch {
+    // If we can't read, skip formatting later
+  }
 
   try {
     await sheets.spreadsheets.values.append({
@@ -107,7 +168,6 @@ async function appendRows(
       requestBody: { values: rows },
     });
   } catch (error) {
-    // Try falling back to the first tab's actual name
     const fallbackRange = await getFallbackRange(sheets, sheetId);
     if (fallbackRange === preferredRange) throw error;
 
@@ -117,6 +177,22 @@ async function appendRows(
       valueInputOption: "USER_ENTERED",
       requestBody: { values: rows },
     });
+  }
+
+  // Copy formatting from row 2 (first data row, 0-indexed: 1) to new rows
+  if (existingRowCount >= 2) {
+    try {
+      await copyRowFormatting(
+        sheets,
+        sheetId,
+        1, // template: row 2 (0-indexed)
+        existingRowCount, // first new row
+        existingRowCount + rows.length, // end (exclusive)
+        7, // columns A–G
+      );
+    } catch {
+      // Formatting is best-effort — don't fail the append
+    }
   }
 }
 
