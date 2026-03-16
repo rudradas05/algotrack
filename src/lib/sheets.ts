@@ -95,50 +95,81 @@ function problemToRow(problem: ProblemForSheet): string[] {
 async function getSheetGridId(
   sheets: ReturnType<typeof google.sheets>,
   spreadsheetId: string,
-): Promise<number> {
+): Promise<{ gridId: number; title: string }> {
   const meta = await sheets.spreadsheets.get({
     spreadsheetId,
     fields: "sheets.properties",
   });
-  return meta.data.sheets?.[0]?.properties?.sheetId ?? 0;
+  const props = meta.data.sheets?.[0]?.properties;
+  return { gridId: props?.sheetId ?? 0, title: props?.title ?? "Sheet1" };
 }
 
-async function copyRowFormatting(
+async function applyTemplateFormatting(
   sheets: ReturnType<typeof google.sheets>,
   spreadsheetId: string,
-  templateRow: number,
   startRow: number,
   endRow: number,
   numColumns: number,
 ): Promise<void> {
-  const gridId = await getSheetGridId(sheets, spreadsheetId);
+  const { gridId, title } = await getSheetGridId(sheets, spreadsheetId);
 
-  await sheets.spreadsheets.batchUpdate({
+  // Read row 2's full formatting + data validation
+  const detail = await sheets.spreadsheets.get({
     spreadsheetId,
-    requestBody: {
-      requests: [
-        {
-          copyPaste: {
-            source: {
-              sheetId: gridId,
-              startRowIndex: templateRow,
-              endRowIndex: templateRow + 1,
-              startColumnIndex: 0,
-              endColumnIndex: numColumns,
-            },
-            destination: {
-              sheetId: gridId,
-              startRowIndex: startRow,
-              endRowIndex: endRow,
-              startColumnIndex: 0,
-              endColumnIndex: numColumns,
-            },
-            pasteType: "PASTE_FORMAT",
-          },
-        },
-      ],
-    },
+    ranges: [`${title}!A2:G2`],
+    fields:
+      "sheets.data.rowData.values(userEnteredFormat,dataValidation)",
   });
+
+  const templateCells =
+    detail.data.sheets?.[0]?.data?.[0]?.rowData?.[0]?.values;
+  if (!templateCells || templateCells.length === 0) return;
+
+  // Build one repeatCell request per column so each column's formatting
+  // is applied across all new rows at once.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const requests: any[] = [];
+
+  for (let col = 0; col < Math.min(templateCells.length, numColumns); col++) {
+    const cell = templateCells[col];
+    if (!cell) continue;
+
+    const fieldParts: string[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cellData: any = {};
+
+    if (cell.userEnteredFormat) {
+      cellData.userEnteredFormat = cell.userEnteredFormat;
+      fieldParts.push("userEnteredFormat");
+    }
+    if (cell.dataValidation) {
+      cellData.dataValidation = cell.dataValidation;
+      fieldParts.push("dataValidation");
+    }
+
+    if (fieldParts.length === 0) continue;
+
+    requests.push({
+      repeatCell: {
+        range: {
+          sheetId: gridId,
+          startRowIndex: startRow,
+          endRowIndex: endRow,
+          startColumnIndex: col,
+          endColumnIndex: col + 1,
+        },
+        cell: cellData,
+        fields: fieldParts.join(","),
+      },
+    });
+  }
+
+  if (requests.length > 0) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests },
+    });
+  }
 }
 
 async function appendRows(
@@ -179,13 +210,12 @@ async function appendRows(
     });
   }
 
-  // Copy formatting from row 2 (first data row, 0-indexed: 1) to new rows
+  // Apply formatting from row 2 (template row) to new rows
   if (existingRowCount >= 2) {
     try {
-      await copyRowFormatting(
+      await applyTemplateFormatting(
         sheets,
         sheetId,
-        1, // template: row 2 (0-indexed)
         existingRowCount, // first new row
         existingRowCount + rows.length, // end (exclusive)
         7, // columns A–G
