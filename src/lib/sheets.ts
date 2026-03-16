@@ -60,7 +60,7 @@ function getAuthClient() {
 }
 
 function getSheetRange(): string {
-  return process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:H";
+  return process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:G";
 }
 
 async function getFallbackRange(
@@ -77,7 +77,7 @@ async function getFallbackRange(
     throw new Error("Unable to determine a worksheet tab name");
   }
 
-  return `${firstTitle}!A:H`;
+  return `${firstTitle}!A:G`;
 }
 
 function problemToRow(problem: ProblemForSheet): string[] {
@@ -85,7 +85,6 @@ function problemToRow(problem: ProblemForSheet): string[] {
     problem.title,
     `https://leetcode.com/problems/${problem.slug}`,
     problem.topic,
-    problem.difficulty,
     "", // Idea (blank — user fills manually)
     "", // What I did wrong (blank — user fills manually)
     "Solved (No help)",
