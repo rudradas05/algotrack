@@ -7,8 +7,17 @@ function normalizeGfgPath(slug: string): string {
     .replace(/^\/+/, "")
     .replace(/\/+$/, "");
 
-  if (cleaned.startsWith("problems/") || cleaned.startsWith("dsa/")) {
+  if (cleaned.startsWith("dsa/")) {
     return cleaned;
+  }
+
+  const problemsMatch = cleaned.match(/^problems\/([a-z0-9-_]+)(?:\/(\d+))?$/i);
+  if (problemsMatch?.[1]) {
+    const normalizedSlug = problemsMatch[1]
+      .toLowerCase()
+      .replace(/_/g, "-")
+      .replace(/-+/g, "-");
+    return `problems/${normalizedSlug}/${problemsMatch[2] ?? "1"}`;
   }
 
   return `problems/${cleaned}/1`;
@@ -37,9 +46,11 @@ export function getProblemKeyFromUrl(url: string): string | null {
 
   const gfgMatch = url
     .toLowerCase()
-    .match(/geeksforgeeks\.org\/(problems\/[a-z0-9-]+\/\d+|dsa\/[a-z0-9-]+)/);
+    .match(
+      /geeksforgeeks\.org\/(problems\/[a-z0-9-_]+(?:\/\d+)?|dsa\/[a-z0-9-_]+)/,
+    );
   if (gfgMatch?.[1]) {
-    return getProblemKey("GFG", gfgMatch[1].replace(/\/+$/, ""));
+    return getProblemKey("GFG", normalizeGfgPath(gfgMatch[1]));
   }
 
   return null;

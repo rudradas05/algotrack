@@ -11,7 +11,10 @@ const LEETCODE_COMMIT_MESSAGE_PATTERNS = [
 ];
 
 const GFG_URL_PATTERN =
-  /(?:https?:\/\/)?(?:www\.)?geeksforgeeks\.org\/(problems\/[a-z0-9-]+\/\d+|dsa\/[a-z0-9-]+)/i;
+  /(?:https?:\/\/)?(?:www\.)?geeksforgeeks\.org\/(?:problems\/([a-z0-9-_]+)(?:\/\d+)?|dsa\/([a-z0-9-_]+))/i;
+
+const GFG_MESSAGE_TITLE_PATTERN =
+  /(?:\bgfg\b|\bgeeksforgeeks\b)\s*[:\-]\s*(?:\d+\.\s*)?(.+)/i;
 
 type ProblemCandidate =
   | { platform: "LeetCode"; slug: string }
@@ -57,7 +60,32 @@ function extractSlugFromPath(path: string): string | null {
 
 function extractGfgPathFromText(value: string): string | null {
   const match = value.toLowerCase().match(GFG_URL_PATTERN);
-  return match?.[1]?.replace(/\/+$/, "") ?? null;
+  if (!match) return null;
+
+  const problemsSlug = match[1]?.replace(/_/g, "-").replace(/-+/g, "-");
+  if (problemsSlug) {
+    return `problems/${problemsSlug}/1`;
+  }
+
+  const dsaSlug = match[2]?.replace(/_/g, "-").replace(/-+/g, "-");
+  if (dsaSlug) {
+    return `dsa/${dsaSlug}`;
+  }
+
+  return null;
+}
+
+function extractGfgPathFromMessage(message: string): string | null {
+  const fromUrl = extractGfgPathFromText(message);
+  if (fromUrl) return fromUrl;
+
+  const titleMatch = message.match(GFG_MESSAGE_TITLE_PATTERN);
+  if (!titleMatch?.[1]) return null;
+
+  const slug = titleToSlug(titleMatch[1].trim());
+  if (!slug) return null;
+
+  return `problems/${slug}/1`;
 }
 
 function extractGfgPathFromFilePath(path: string): string | null {
@@ -132,7 +160,7 @@ function extractProblemCandidates(
     if (normalized) addCandidate({ platform: "LeetCode", slug: normalized });
   }
 
-  const gfgPathFromMessage = extractGfgPathFromText(commit.message);
+  const gfgPathFromMessage = extractGfgPathFromMessage(commit.message);
   if (gfgPathFromMessage) {
     addCandidate({ platform: "GFG", slug: gfgPathFromMessage });
   }
