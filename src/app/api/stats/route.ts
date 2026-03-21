@@ -44,15 +44,21 @@ export async function GET() {
       difficultyBreakdown[entry.difficulty] = entry._count.difficulty;
     }
 
-    const topicData = await prisma.problem.groupBy({
-      by: ["topic"],
+    const topicBreakdown: Record<string, number> = {};
+    const problemTopics = await prisma.problem.findMany({
       where: { userId },
-      _count: { topic: true },
+      select: { topic: true },
     });
 
-    const topicBreakdown: Record<string, number> = {};
-    for (const entry of topicData) {
-      topicBreakdown[entry.topic] = entry._count.topic;
+    for (const problem of problemTopics) {
+      const topics = problem.topic
+        .split(",")
+        .map((topic) => topic.trim())
+        .filter(Boolean);
+
+      for (const topic of topics) {
+        topicBreakdown[topic] = (topicBreakdown[topic] ?? 0) + 1;
+      }
     }
 
     const streaks = await prisma.streak.findMany({

@@ -315,6 +315,9 @@ export async function POST(request: NextRequest) {
             },
           },
           update: {
+            title: metadata.title,
+            difficulty: metadata.difficulty,
+            topic: metadata.topic,
             githubUrl: commit.url,
             solvedAt: new Date(),
           },

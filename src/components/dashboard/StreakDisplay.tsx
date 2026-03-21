@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, TrendingUp, Flame, Target, Zap } from "lucide-react";
 
@@ -14,8 +14,18 @@ const CELL_GAP = 4;
 const TOTAL = CELL_SIZE + CELL_GAP;
 
 const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 const DAY_LABELS = ["Mon", "Wed", "Fri"];
@@ -43,6 +53,7 @@ interface DayData {
 }
 
 export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
+  const calendarContainerRef = useRef<HTMLDivElement | null>(null);
   const [tooltip, setTooltip] = useState<{
     text: string;
     x: number;
@@ -172,8 +183,13 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
       <CardContent className="space-y-6 pt-6">
         {/* Activity calendar (contribution-style heatmap) */}
         <div>
-          <h3 className="text-sm font-medium text-foreground mb-3">Activity calendar</h3>
-          <div className="rounded-xl border border-border bg-muted/20 p-4 overflow-x-auto relative min-h-35">
+          <h3 className="text-sm font-medium text-foreground mb-3">
+            Activity calendar
+          </h3>
+          <div
+            ref={calendarContainerRef}
+            className="rounded-xl border border-border bg-muted/20 p-4 overflow-x-auto relative min-h-35"
+          >
             <svg
               width={svgWidth}
               height={svgHeight}
@@ -228,10 +244,11 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
                       fill={getColor(day.count)}
                       stroke="rgba(0,0,0,0.06)"
                       strokeWidth={0.5}
-                      className="cursor-pointer transition-all hover:opacity-90 hover:scale-105"
+                      className="cursor-pointer transition-opacity hover:opacity-90"
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        const parent = e.currentTarget.closest("svg")?.getBoundingClientRect();
+                        const parent =
+                          calendarContainerRef.current?.getBoundingClientRect();
                         if (parent) {
                           setTooltip({
                             text: `${day.count} problem${day.count !== 1 ? "s" : ""} on ${day.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
@@ -281,7 +298,9 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
           <div className="rounded-xl border border-border bg-muted/10 p-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Last 30 days</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                Last 30 days
+              </h3>
             </div>
             <div className="rounded-lg border border-border/60 bg-background/50 p-4">
               <svg
@@ -292,7 +311,11 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
                 <defs>
                   <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0.02" />
+                    <stop
+                      offset="100%"
+                      stopColor="#6366f1"
+                      stopOpacity="0.02"
+                    />
                   </linearGradient>
                   <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#22c55e" />
@@ -312,7 +335,10 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
                     strokeWidth={0.3}
                   />
                 ))}
-                <polygon points={chartData.areaPath} fill="url(#areaGradient)" />
+                <polygon
+                  points={chartData.areaPath}
+                  fill="url(#areaGradient)"
+                />
                 <polyline
                   fill="none"
                   stroke="url(#lineGradient)"
@@ -345,7 +371,9 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
           <div className="rounded-xl border border-border bg-muted/10 p-4">
             <div className="flex items-center gap-2 mb-3">
               <Flame className="h-4 w-4 text-orange-500" />
-              <h3 className="text-sm font-semibold text-foreground">Activity summary</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                Activity summary
+              </h3>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -386,9 +414,15 @@ export function StreakDisplay({ streaks }: { streaks: StreakDay[] }) {
                     <Icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
-                    <p className="text-xs font-medium text-foreground">{label}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>
+                    <p className="text-xl font-bold tabular-nums text-foreground">
+                      {value}
+                    </p>
+                    <p className="text-xs font-medium text-foreground">
+                      {label}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {sub}
+                    </p>
                   </div>
                 </div>
               ))}

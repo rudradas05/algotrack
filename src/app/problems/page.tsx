@@ -22,19 +22,20 @@ export default async function AllProblemsPage() {
     where: { userId },
   });
 
-  const topicData = await prisma.problem.groupBy({
-    by: ["topic"],
-    where: { userId },
-  });
-
   const difficulties = difficultyData
     .map((d) => d.difficulty)
     .filter(Boolean)
     .sort();
-  const topics = topicData
-    .map((t) => t.topic)
-    .filter(Boolean)
-    .sort();
+  const topics = Array.from(
+    new Set(
+      problems.flatMap((problem) =>
+        problem.topic
+          .split(",")
+          .map((topic) => topic.trim())
+          .filter(Boolean),
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
 
   // Compute stats from the data we already fetched
   const stats = {

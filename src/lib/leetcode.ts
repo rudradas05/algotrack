@@ -56,6 +56,10 @@ export interface LeetCodeMetadata {
   topic: string;
 }
 
+interface LeetCodeTopicTag {
+  name?: string;
+}
+
 const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql";
 
 const GET_QUESTION_QUERY = `
@@ -99,13 +103,21 @@ export async function fetchLeetCodeMetadata(
     throw new Error(`LeetCode question not found for slug: ${slug}`);
   }
 
+  const normalizedTopics = Array.from(
+    new Set(
+      ((question.topicTags ?? []) as LeetCodeTopicTag[])
+        .map((tag) => tag.name?.trim())
+        .filter((name): name is string => Boolean(name)),
+    ),
+  );
+
   return {
     title: question.title,
     slug: question.titleSlug,
     difficulty: question.difficulty as "Easy" | "Medium" | "Hard",
     topic:
-      question.topicTags && question.topicTags.length > 0
-        ? question.topicTags[0].name
+      normalizedTopics.length > 0
+        ? normalizedTopics.join(", ")
         : "Uncategorized",
   };
 }

@@ -632,6 +632,13 @@ interface AllProblemsClientProps {
   };
 }
 
+function extractTopics(topicField: string): string[] {
+  return topicField
+    .split(",")
+    .map((topic) => topic.trim())
+    .filter(Boolean);
+}
+
 export function AllProblemsClient({
   initialProblems,
   availableDifficulties,
@@ -658,7 +665,11 @@ export function AllProblemsClient({
       )
         return false;
       if (diffFilter !== "all" && p.difficulty !== diffFilter) return false;
-      if (topicFilter !== "all" && p.topic !== topicFilter) return false;
+      if (
+        topicFilter !== "all" &&
+        !extractTopics(p.topic).includes(topicFilter)
+      )
+        return false;
       if (statusFilter === "solved" && !p.solvedByMe) return false;
       if (statusFilter === "help" && p.solvedByMe) return false;
       if (retryFilter === "yes" && !p.needsRetry) return false;
@@ -672,7 +683,10 @@ export function AllProblemsClient({
     setCurrentPage(1);
   }, [search, diffFilter, topicFilter, statusFilter, retryFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredProblems.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProblems.length / ITEMS_PER_PAGE),
+  );
   const paginatedProblems = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredProblems.slice(start, start + ITEMS_PER_PAGE);
@@ -807,13 +821,15 @@ export function AllProblemsClient({
           <span className="text-sm font-semibold">Search & filters</span>
           {hasActiveFilters && (
             <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-              {[
-                !!search.trim(),
-                diffFilter !== "all",
-                topicFilter !== "all",
-                statusFilter !== "all",
-                retryFilter !== "all",
-              ].filter(Boolean).length}
+              {
+                [
+                  !!search.trim(),
+                  diffFilter !== "all",
+                  topicFilter !== "all",
+                  statusFilter !== "all",
+                  retryFilter !== "all",
+                ].filter(Boolean).length
+              }
             </span>
           )}
         </div>
@@ -880,7 +896,10 @@ export function AllProblemsClient({
               <label className="block text-xs font-medium text-muted-foreground mb-2">
                 Topic
               </label>
-              <Select value={topicFilter} onValueChange={(v) => v && setTopicFilter(v)}>
+              <Select
+                value={topicFilter}
+                onValueChange={(v) => v && setTopicFilter(v)}
+              >
                 <SelectTrigger className="h-10 w-full rounded-xl border-border bg-background text-sm">
                   <SelectValue placeholder="All topics" />
                 </SelectTrigger>
@@ -952,11 +971,11 @@ export function AllProblemsClient({
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {/* Table card header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
-          <h2 className="text-base font-semibold text-foreground">
-            Problems
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">Problems</h2>
           <span className="text-sm text-muted-foreground tabular-nums">
-            <span className="font-medium text-foreground">{filteredProblems.length}</span>
+            <span className="font-medium text-foreground">
+              {filteredProblems.length}
+            </span>
             {filteredProblems.length !== problems.length && (
               <span> / {problems.length}</span>
             )}
@@ -1101,16 +1120,21 @@ export function AllProblemsClient({
                           problemId={problem.id}
                           currentNeedRetry={problem.needsRetry}
                           currentNotes={problem.retryNotes}
-                          onUpdate={(data) => handleRetryUpdate(problem.id, data)}
+                          onUpdate={(data) =>
+                            handleRetryUpdate(problem.id, data)
+                          }
                           isSaving={loadingId === problem.id}
                         />
                       </TableCell>
                       <TableCell className="pl-3 pr-5 py-3.5 text-xs text-muted-foreground tabular-nums whitespace-nowrap">
-                        {new Date(problem.solvedAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {new Date(problem.solvedAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1125,7 +1149,10 @@ export function AllProblemsClient({
                   Showing{" "}
                   <span className="font-medium text-foreground">
                     {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
-                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredProblems.length)}
+                    {Math.min(
+                      currentPage * ITEMS_PER_PAGE,
+                      filteredProblems.length,
+                    )}
                   </span>{" "}
                   of {filteredProblems.length}
                 </span>
@@ -1191,7 +1218,9 @@ export function AllProblemsClient({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-lg"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
                     disabled={currentPage === totalPages}
                     title="Next page"
                   >
