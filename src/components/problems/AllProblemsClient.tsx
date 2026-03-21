@@ -1029,7 +1029,7 @@ export function AllProblemsClient({
                     <TableHead className="min-w-[110px] px-3 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Status
                     </TableHead>
-                    <TableHead className="w-16 px-3 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">
+                    <TableHead className="min-w-[190px] px-3 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Retry
                     </TableHead>
                     <TableHead className="min-w-[90px] pl-3 pr-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -1116,9 +1116,8 @@ export function AllProblemsClient({
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="px-3 py-3.5 text-center">
+                      <TableCell className="px-3 py-3.5 align-top">
                         <RetryNotesModal
-                          problemId={problem.id}
                           currentNeedRetry={problem.needsRetry}
                           currentNotes={problem.retryNotes}
                           onUpdate={(data) =>

@@ -15,7 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface RetryNotesModalProps {
-  problemId: string;
   currentNeedRetry: boolean;
   currentNotes: string | null;
   onUpdate: (data: { needsRetry: boolean; retryNotes: string }) => void;
@@ -23,7 +22,6 @@ interface RetryNotesModalProps {
 }
 
 export function RetryNotesModal({
-  problemId,
   currentNeedRetry,
   currentNotes,
   onUpdate,
@@ -32,9 +30,14 @@ export function RetryNotesModal({
   const [open, setOpen] = useState(false);
   const [needRetry, setNeedRetry] = useState(currentNeedRetry);
   const [notes, setNotes] = useState(currentNotes ?? "");
+  const notePreview = (currentNotes ?? "").trim();
+  const hasNotePreview = notePreview.length > 0;
 
   const handleSave = () => {
-    onUpdate({ needsRetry: needRetry, retryNotes: notes });
+    onUpdate({
+      needsRetry: needRetry,
+      retryNotes: needRetry ? notes : "",
+    });
     setOpen(false);
   };
 
@@ -48,18 +51,44 @@ export function RetryNotesModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <div onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={currentNeedRetry}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              setOpen(true);
-            } else {
-              onUpdate({ needsRetry: false, retryNotes: "" });
-            }
-          }}
-          className="cursor-pointer"
-        />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex min-w-[170px] flex-col items-start gap-1.5"
+      >
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={currentNeedRetry}
+            onCheckedChange={() => {
+              if (!isSaving) {
+                handleOpenChange(true);
+              }
+            }}
+            disabled={isSaving}
+            className="cursor-pointer"
+          />
+          <button
+            type="button"
+            onClick={() => handleOpenChange(true)}
+            disabled={isSaving}
+            className="text-xs font-medium text-foreground transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+          >
+            {currentNeedRetry ? "Edit retry" : "Add retry"}
+          </button>
+        </div>
+
+        {currentNeedRetry && (
+          <button
+            type="button"
+            onClick={() => handleOpenChange(true)}
+            disabled={isSaving}
+            className="max-w-full text-left text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            title={hasNotePreview ? notePreview : "No retry note added yet"}
+          >
+            <span className="block overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+              {hasNotePreview ? notePreview : "No retry note added yet"}
+            </span>
+          </button>
+        )}
       </div>
 
       <DialogContent className="sm:max-w-[425px]">
