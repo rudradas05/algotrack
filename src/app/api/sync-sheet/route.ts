@@ -13,7 +13,13 @@ export async function POST() {
 
     const problems = await prisma.problem.findMany({
       where: { userId: session.user.id },
-      select: { title: true, slug: true, topic: true, difficulty: true },
+      select: {
+        title: true,
+        slug: true,
+        topic: true,
+        difficulty: true,
+        platform: true,
+      },
       orderBy: { solvedAt: "asc" },
     });
 

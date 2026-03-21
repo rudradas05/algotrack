@@ -4,11 +4,26 @@ import { fetchLeetCodeMetadata } from "@/lib/leetcode";
 import { appendToGoogleSheet } from "@/lib/sheets";
 import { prisma } from "@/lib/prisma";
 
-const COMMIT_MESSAGE_PATTERNS = [
+const LEETCODE_COMMIT_MESSAGE_PATTERNS = [
   /^Add solution:\s*\d+\.\s*(.+)$/i,
   /(?:leetcode\.com\/problems\/)([a-z0-9-]+)(?:\/|\b)/i,
   /^(?:add|added|solve|solved)[:\s-]+(?:\d+\.\s*)?(.+)$/i,
 ];
+
+const GFG_URL_PATTERN =
+  /(?:https?:\/\/)?(?:www\.)?geeksforgeeks\.org\/(problems\/[a-z0-9-]+\/\d+|dsa\/[a-z0-9-]+)/i;
+
+type ProblemCandidate =
+  | { platform: "LeetCode"; slug: string }
+  | { platform: "GFG"; slug: string };
+
+interface WebhookProblemMetadata {
+  title: string;
+  slug: string;
+  difficulty: string;
+  topic: string;
+  platform: "LeetCode" | "GFG";
+}
 
 function titleToSlug(title: string): string {
   return title
@@ -40,18 +55,86 @@ function extractSlugFromPath(path: string): string | null {
   return null;
 }
 
-function extractSlugCandidates(
-  commit: GitHubPushEvent["commits"][number],
-): string[] {
-  const candidates = new Set<string>();
+function extractGfgPathFromText(value: string): string | null {
+  const match = value.toLowerCase().match(GFG_URL_PATTERN);
+  return match?.[1]?.replace(/\/+$/, "") ?? null;
+}
 
-  for (const pattern of COMMIT_MESSAGE_PATTERNS) {
+function extractGfgPathFromFilePath(path: string): string | null {
+  const normalized = path.toLowerCase();
+
+  const extracted = extractGfgPathFromText(normalized);
+  if (extracted) return extracted;
+
+  if (!normalized.includes("gfg") && !normalized.includes("geeksforgeeks")) {
+    return null;
+  }
+
+  const fileName = normalized.split("/").pop() ?? "";
+  const cleaned = fileName
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/^\d+[-_]+/, "")
+    .replace(/_/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  if (!cleaned) {
+    return null;
+  }
+
+  return `problems/${cleaned}/1`;
+}
+
+function slugToTitle(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function buildGfgMetadata(slugPath: string): WebhookProblemMetadata {
+  const parts = slugPath.split("/").filter(Boolean);
+  const titleSlug =
+    parts[0] === "problems" && parts.length >= 2
+      ? parts[1]
+      : (parts[parts.length - 1] ?? "problem");
+
+  return {
+    title: slugToTitle(titleSlug),
+    slug: slugPath,
+    difficulty: "Unknown",
+    topic: "GFG",
+    platform: "GFG",
+  };
+}
+
+function extractProblemCandidates(
+  commit: GitHubPushEvent["commits"][number],
+): ProblemCandidate[] {
+  const candidates: ProblemCandidate[] = [];
+  const seen = new Set<string>();
+
+  const addCandidate = (candidate: ProblemCandidate) => {
+    const key = `${candidate.platform}:${candidate.slug}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(candidate);
+  };
+
+  for (const pattern of LEETCODE_COMMIT_MESSAGE_PATTERNS) {
     const match = commit.message.match(pattern);
     if (!match?.[1]) continue;
 
     const raw = match[1].trim();
     const normalized = titleToSlug(raw);
-    if (normalized) candidates.add(normalized);
+    if (normalized) addCandidate({ platform: "LeetCode", slug: normalized });
+  }
+
+  const gfgPathFromMessage = extractGfgPathFromText(commit.message);
+  if (gfgPathFromMessage) {
+    addCandidate({ platform: "GFG", slug: gfgPathFromMessage });
   }
 
   const changedFiles = [
@@ -62,10 +145,13 @@ function extractSlugCandidates(
 
   for (const filePath of changedFiles) {
     const fromPath = extractSlugFromPath(filePath);
-    if (fromPath) candidates.add(fromPath);
+    if (fromPath) addCandidate({ platform: "LeetCode", slug: fromPath });
+
+    const gfgPath = extractGfgPathFromFilePath(filePath);
+    if (gfgPath) addCandidate({ platform: "GFG", slug: gfgPath });
   }
 
-  return Array.from(candidates);
+  return candidates;
 }
 
 function extractGitHubNoreplyUsername(email?: string): string | null {
@@ -279,18 +365,25 @@ export async function POST(request: NextRequest) {
     }
 
     for (const commit of event.commits) {
-      const slugCandidates = extractSlugCandidates(commit);
-      if (slugCandidates.length === 0) continue;
+      const candidates = extractProblemCandidates(commit);
+      if (candidates.length === 0) continue;
 
       try {
-        let metadata = null;
-        for (const slug of slugCandidates) {
-          try {
-            metadata = await fetchLeetCodeMetadata(slug);
-            break;
-          } catch {
-            // Try next candidate extracted from commit/path.
+        let metadata: WebhookProblemMetadata | null = null;
+        for (const candidate of candidates) {
+          if (candidate.platform === "LeetCode") {
+            try {
+              const lcMetadata = await fetchLeetCodeMetadata(candidate.slug);
+              metadata = { ...lcMetadata, platform: "LeetCode" };
+              break;
+            } catch {
+              // Try the next candidate extracted from commit/path.
+            }
+            continue;
           }
+
+          metadata = buildGfgMetadata(candidate.slug);
+          break;
         }
 
         if (!metadata) continue;
@@ -316,6 +409,7 @@ export async function POST(request: NextRequest) {
           },
           update: {
             title: metadata.title,
+            platform: metadata.platform,
             difficulty: metadata.difficulty,
             topic: metadata.topic,
             githubUrl: commit.url,
@@ -324,6 +418,7 @@ export async function POST(request: NextRequest) {
           create: {
             title: metadata.title,
             slug: metadata.slug,
+            platform: metadata.platform,
             difficulty: metadata.difficulty,
             topic: metadata.topic,
             githubUrl: commit.url,

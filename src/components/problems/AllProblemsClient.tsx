@@ -570,6 +570,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getProblemUrl } from "@/lib/problem-url";
 import { RetryNotesModal } from "./RetryNotesModal";
 import { toast } from "sonner";
 import {
@@ -991,7 +992,7 @@ export function AllProblemsClient({
               No problems found
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Try adjusting your filters or add problems from LeetCode.
+              Try adjusting your filters or add problems from LeetCode or GFG.
             </p>
             {hasActiveFilters && (
               <Button
@@ -1047,7 +1048,7 @@ export function AllProblemsClient({
                       </TableCell>
                       <TableCell className="px-3 py-3.5 max-w-[280px]">
                         <a
-                          href={`https://leetcode.com/problems/${problem.slug}`}
+                          href={getProblemUrl(problem.platform, problem.slug)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-medium text-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link"

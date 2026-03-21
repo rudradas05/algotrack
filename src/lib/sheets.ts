@@ -1,10 +1,16 @@
 import { google } from "googleapis";
+import {
+  getProblemKey,
+  getProblemKeyFromUrl,
+  getProblemUrl,
+} from "@/lib/problem-url";
 
 interface ProblemForSheet {
   title: string;
   slug: string;
   topic: string;
   difficulty: string;
+  platform: string;
 }
 
 function parsePrivateKey(raw: string): string {
@@ -83,7 +89,7 @@ async function getFallbackRange(
 function problemToRow(problem: ProblemForSheet): string[] {
   return [
     problem.title,
-    `https://leetcode.com/problems/${problem.slug}`,
+    getProblemUrl(problem.platform, problem.slug),
     problem.topic,
     "", // Idea (blank — user fills manually)
     "", // What I did wrong (blank — user fills manually)
@@ -117,8 +123,7 @@ async function applyTemplateFormatting(
   const detail = await sheets.spreadsheets.get({
     spreadsheetId,
     ranges: [`${title}!A2:G2`],
-    fields:
-      "sheets.data.rowData.values(userEnteredFormat,dataValidation)",
+    fields: "sheets.data.rowData.values(userEnteredFormat,dataValidation)",
   });
 
   const templateCells =
@@ -231,7 +236,7 @@ async function readExistingSlugs(
   sheetId: string,
 ): Promise<Set<string>> {
   const preferredRange = getSheetRange();
-  const slugs = new Set<string>();
+  const problemKeys = new Set<string>();
 
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -240,20 +245,20 @@ async function readExistingSlugs(
     });
 
     const rows = response.data.values;
-    if (!rows) return slugs;
+    if (!rows) return problemKeys;
 
-    // Column B has the LeetCode URL — extract the slug from it
+    // Column B has the problem URL. Convert it into a stable platform+slug key.
     for (const row of rows) {
       const url = row[1];
       if (typeof url !== "string") continue;
-      const match = url.match(/leetcode\.com\/problems\/([a-z0-9-]+)/);
-      if (match?.[1]) slugs.add(match[1]);
+      const key = getProblemKeyFromUrl(url);
+      if (key) problemKeys.add(key);
     }
   } catch {
     // If we can't read the sheet, return empty set so all problems get synced
   }
 
-  return slugs;
+  return problemKeys;
 }
 
 export async function appendToGoogleSheet(
@@ -281,16 +286,21 @@ export async function syncAllToGoogleSheet(
   const authClient = getAuthClient();
   const sheets = google.sheets({ version: "v4", auth: authClient });
 
-  const existingSlugs = await readExistingSlugs(sheets, sheetId);
+  const existingProblemKeys = await readExistingSlugs(sheets, sheetId);
 
-  const newProblems = problems.filter((p) => !existingSlugs.has(p.slug));
+  const newProblems = problems.filter(
+    (p) => !existingProblemKeys.has(getProblemKey(p.platform, p.slug)),
+  );
 
   if (newProblems.length === 0) {
-    return { synced: 0, alreadyInSheet: existingSlugs.size };
+    return { synced: 0, alreadyInSheet: existingProblemKeys.size };
   }
 
   const rows = newProblems.map(problemToRow);
   await appendRows(sheets, sheetId, rows);
 
-  return { synced: newProblems.length, alreadyInSheet: existingSlugs.size };
+  return {
+    synced: newProblems.length,
+    alreadyInSheet: existingProblemKeys.size,
+  };
 }
